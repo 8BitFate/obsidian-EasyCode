@@ -3,7 +3,7 @@
 	"name": "Easy Code",
 	"version": "0.1",
 	"minAppVersion": "0.15.0",
-	"description": "This is a sample plugin for Obsidian. This plugin demonstrates some of the capabilities of the Obsidian API.",
+	"description": "Coding api for better frontmatter use",
 	"author": "8BitFate",
 	"isDesktopOnly": false
 }

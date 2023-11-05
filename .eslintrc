@@ -3,6 +3,7 @@
     "parser": "@typescript-eslint/parser",
     "env": { "node": true },
     "plugins": [
+      "@stylistic",
       "@typescript-eslint"
     ],
     "extends": [
@@ -16,10 +17,18 @@
     },
     "rules": {
       "no-unused-vars": "off",
+      "require-jsdoc": "off",
+      "no-prototype-builtins": "off",
       "@typescript-eslint/no-unused-vars": ["error", { "args": "none" }],
       "@typescript-eslint/ban-ts-comment": "off",
-      "no-prototype-builtins": "off",
       "@typescript-eslint/no-empty-function": "off",
-			"require-jsdoc": "off"
+      "@stylistic/indent": "off",
+      "@stylistic/padding-line-between-statements": [
+        "error",
+        { "blankLine": "always", "prev": "*", "next": "function" },
+        { "blankLine": "always", "prev": "function", "next": "*" },
+        { "blankLine": "always", "prev": "*", "next": "class" },
+        { "blankLine": "always", "prev": "class", "next": "*" }
+      ]
     }
   }
