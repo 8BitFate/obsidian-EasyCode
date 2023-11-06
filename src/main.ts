@@ -1,124 +1,60 @@
-import {App,
+import {
   CachedMetadata,
   MarkdownPostProcessorContext,
   Plugin,
-  PluginSettingTab,
-  Setting,
   TFile,
 } from 'obsidian';
 
-// Remember to rename these classes and interfaces!
+import {
+  EasyCodeSettings,
+  EasyCodeTab,
+  defaultSettings,
+} from 'settings';
 
-interface MyPluginSettings {
-  mySetting: string;
-}
+import {
+  CodeBlock,
+} from 'code-handler';
 
-const DEFAULT_SETTINGS: MyPluginSettings = {
-  mySetting: 'default',
-};
-// class frontmatter {
-//   fields: [Field];
-//   constructor(fields: [Field]) {
-//     this.fields = fields;
-//   }
-// }
+import {
+  FileHandler,
+} from 'frontmatter';
+import {
+  waitForActiveFile,
+} from 'utils';
 
-class Field {
-  file: TFile;
-  name: string;
-  value; // string | number | boolean;
-  el: HTMLElement;
-  cbs: [TFile, string, (d: any) => Promise<void>][];
-  constructor(
-      file: TFile,
-      name: string,
-      value: any,
-      el: HTMLElement,
-      cbs: [TFile, string, (d: any) => Promise<void>][] ) {
-    this.name = name;
-    this.file = file;
-    this.value = value;
-    this.el = el;
-    this.cbs = cbs;
-  }
-  constant(el: HTMLElement = this.el) {
-    return el.createEl('div', {text: this.value.toString()});
-  }
-  updateing(el: HTMLElement = this.el) {
-    const disp = el.createEl('div', {text: this.value.toString()});
-    console.log(this.value);
-    const cb = async (d: any) =>{
-      disp.innerHTML = d.toString();
-    };
-    this.cbs.push([this.file, this.name, cb]);
-    return disp;
-  }
-}
-export default class MyPlugin extends Plugin {
-  settings: MyPluginSettings;
+export default class EasyCode extends Plugin {
+  settings: EasyCodeSettings;
 
-  cbs: [TFile, string, (d: any) => Promise<void>][] = [];
-
-  update_callbacks : [[
-    path: string,
-    name: string,
-    cb: (s: string) => Promise<void>]];
+  activeFiles: {[key: string]: FileHandler} = {};
 
   async onload() {
     await this.loadSettings();
+    this.addSettingTab(new EasyCodeTab(this.app, this));
 
-    this.addSettingTab(new SampleSettingTab(this.app, this));
+    this.activeFiles = {};
+    this.registerMarkdownCodeBlockProcessor(
+        this.settings.keyword,
+        codeProcessor(this));
+
     this.registerEvent(
-        this.app.metadataCache.on(
-            'changed',
-            function(cbs: [TFile, string, (d: any) => Promise<void>][]) {
-              return function(f: TFile, d: string, m: CachedMetadata) {
-              // console.log(f);
-              // console.log(d);
-              // console.log(m);
-                cbs.forEach((x) => {
-                  if (f == x[0]) {
-                    if (m?.frontmatter) {
-                      x[2](m.frontmatter[x[1]]);
-                    }
-                  }
-                });
-              };
-            }(this.cbs)
-            , {}));
+        this.app.metadataCache.on( 'changed', cacheHandler(this))
+    );
 
-    const processor = function(
-        cbs: [TFile, string, (d: any) => Promise<void>][]) {
-      return async function(
-          source: string,
-          el: HTMLElement,
-          _ctx: MarkdownPostProcessorContext) {
-        el.innerHTML = '';
-        try {
-          const file = app.workspace.getActiveFile();
-          console.log('this is it:' + file);
-          let fields: Field[] = [];
-          if (file) {
-            const fm = app.metadataCache.getFileCache(file);
-            if (fm?.frontmatter) {
-              fields = Object.entries(
-                  fm.frontmatter.valueOf() )
-                  .map(([name, data]) => {
-                    return new Field(file, name, data, el, cbs);
-                  });
-            }
-          }
-          const result = await new Function(
-              'fm',
-              source + '\nreturn fmf_config;')(fields);
-          console.log(result);
-        } catch (e) {
-          el.innerHTML = '';
-          el.innerHTML = 'Evaluation Error: ' + e.stack;
-        }
-      };
-    };
-    this.registerMarkdownCodeBlockProcessor('fmfjs', processor(this.cbs));
+
+    // const statusBarItemEl = this.addStatusBarItem();
+    // statusBarItemEl.setText('Status Bar Text');
+
+    this.addCommand({
+      id: 'easycode-refresh-bloks',
+      name: 'EasyCode refresh all blocks',
+      callback: () => {
+        // TODO
+      },
+    });
+  }
+
+  resetCodeBlocks() { // TODO
+    return;
   }
 
   onunload() {
@@ -126,7 +62,7 @@ export default class MyPlugin extends Plugin {
   }
 
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    this.settings = Object.assign({}, defaultSettings, await this.loadData());
   }
 
   async saveSettings() {
@@ -134,28 +70,30 @@ export default class MyPlugin extends Plugin {
   }
 }
 
-class SampleSettingTab extends PluginSettingTab {
-  plugin: MyPlugin;
+function codeProcessor(plugin: EasyCode) {
+  return async ( source: string,
+      el: HTMLElement,
+      context: MarkdownPostProcessorContext
+  ) => {
+    const file = await waitForActiveFile(plugin);
+    let fileHandler = plugin.activeFiles[file.path];
+    if (!fileHandler) {
+      fileHandler = new FileHandler(plugin, file);
+      fileHandler.getFields();
+      plugin.activeFiles[file.path] = fileHandler;
+    }
+    const codeBlockKey = context.docId;
+    const codeBlock = new CodeBlock(plugin, source, el, context, fileHandler);
+    fileHandler.codeBlocks[codeBlockKey] = codeBlock;
+    codeBlock.run();
+  };
+}
 
-  constructor(app: App, plugin: MyPlugin) {
-    super(app, plugin);
-    this.plugin = plugin;
-  }
-
-  display(): void {
-    const {containerEl} = this;
-
-    containerEl.empty();
-
-    new Setting(containerEl)
-        .setName('Setting')
-        .setDesc('It\'s a secret')
-        .addText((text) => text
-            .setPlaceholder('Enter your secret')
-            .setValue(this.plugin.settings.mySetting)
-            .onChange(async (value) => {
-              this.plugin.settings.mySetting = value;
-              await this.plugin.saveSettings();
-            }));
-  }
+function cacheHandler(plugin: EasyCode) {
+  return (file: TFile, data: string, cache: CachedMetadata) => {
+    const fileHandler = plugin.activeFiles[file.path];
+    if (fileHandler) {
+      fileHandler.update(cache);
+    }
+  };
 }
