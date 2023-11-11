@@ -12,20 +12,21 @@ import {
 } from 'settings';
 
 import {
-  CodeBlock,
-} from 'code-handler';
+  FileData,
+} from 'file';
 
-import {
-  FileHandler,
-} from 'frontmatter';
+
 import {
   waitForActiveFile,
 } from 'utils';
 
 export default class EasyCode extends Plugin {
+
   settings: EasyCodeSettings;
 
-  activeFiles: {[key: string]: FileHandler} = {};
+  activeFiles: {[key :string]: FileData} = {};
+
+  types: {[key: string]: FrontmatterType};
 
   async onload() {
     await this.loadSettings();
@@ -34,12 +35,11 @@ export default class EasyCode extends Plugin {
     this.activeFiles = {};
     this.registerMarkdownCodeBlockProcessor(
         this.settings.keyword,
-        codeProcessor(this));
-
-    this.registerEvent(
-        this.app.metadataCache.on( 'changed', cacheHandler(this))
+        codeProcessor(this)
     );
 
+    this.registerEvent(
+        this.app.metadataCache.on( 'changed', cacheHandler(this)));
 
     // const statusBarItemEl = this.addStatusBarItem();
     // statusBarItemEl.setText('Status Bar Text');
@@ -48,13 +48,18 @@ export default class EasyCode extends Plugin {
       id: 'easycode-refresh-bloks',
       name: 'EasyCode refresh all blocks',
       callback: () => {
-        // TODO
+        this.refreshCodeBlocks();
       },
     });
   }
 
-  resetCodeBlocks() { // TODO
-    return;
+  refreshCodeBlocks() {
+    Object.values(this.activeFiles).map((file) => {
+      file.getFields();
+      Object.values(file.codeBlocks).map((codeBlock) => {
+        codeBlock.run();
+      });
+    });
   }
 
   onunload() {
@@ -68,32 +73,31 @@ export default class EasyCode extends Plugin {
   async saveSettings() {
     await this.saveData(this.settings);
   }
+
 }
 
 function codeProcessor(plugin: EasyCode) {
-  return async ( source: string,
+  return async (
+      source: string,
       el: HTMLElement,
       context: MarkdownPostProcessorContext
   ) => {
-    const file = await waitForActiveFile(plugin);
+    const file = await waitForActiveFile(plugin, context.sourcePath);
     let fileHandler = plugin.activeFiles[file.path];
     if (!fileHandler) {
-      fileHandler = new FileHandler(plugin, file);
-      fileHandler.getFields();
+      fileHandler = new FileData(plugin, file);
       plugin.activeFiles[file.path] = fileHandler;
     }
-    const codeBlockKey = context.docId;
-    const codeBlock = new CodeBlock(plugin, source, el, context, fileHandler);
-    fileHandler.codeBlocks[codeBlockKey] = codeBlock;
-    codeBlock.run();
+    fileHandler.newBlock(source, el, context);
   };
 }
 
 function cacheHandler(plugin: EasyCode) {
-  return (file: TFile, data: string, cache: CachedMetadata) => {
+  return (file: TFile, _data: string, cache: CachedMetadata) => {
     const fileHandler = plugin.activeFiles[file.path];
     if (fileHandler) {
       fileHandler.update(cache);
     }
   };
 }
+

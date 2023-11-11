@@ -1,12 +1,6 @@
 import {
-  MarkdownPostProcessorContext,
-} from 'obsidian';
-
-import EasyCode from 'main';
-
-import {
-  FileHandler,
-} from 'frontmatter';
+  FileData,
+} from 'file';
 
 import {
   DeepPartial,
@@ -21,45 +15,42 @@ const DEFAULT_CODE_BLOCK_SETTINGS: CodeBlockSettings = {
   test: 'test',
 };
 
+const CODE_POSTFIX = `
+return typeof variable !== 'undefined' ? ec_settings : {};
+`;
+
 export class CodeBlock {
-  plugin: EasyCode;
+
   source: string;
   wrapper: HTMLElement;
   container: HTMLElement;
-  context: MarkdownPostProcessorContext;
-  parentFile: FileHandler;
+  parentFile: FileData;
   settings: CodeBlockSettings;
 
   constructor(
-      plugin: EasyCode,
       source: string,
       wrapper: HTMLElement,
-      context: MarkdownPostProcessorContext,
-      parentFile: FileHandler,
+      parentFile: FileData,
       settings: DeepPartial<CodeBlockSettings> = {}
   ) {
-    this.plugin = plugin;
     this.source = source;
     this.wrapper = wrapper;
     this.container = wrapper.createEl('div');
-    this.context = context;
     this.parentFile = parentFile;
     this.settings = patch(DEFAULT_CODE_BLOCK_SETTINGS, settings);
   }
 
   run() {
-    const code = new Function(
-        'fm', 'el', 'ctx',
-        this.source + '\nreturn fmf_config || {};');
+    this.container.innerHTML = '';
+    const code = this.source + CODE_POSTFIX;
+    const executable = new Function('fm', 'el', code);
     try {
-      const codeSettings = code(
-          this.parentFile.fields,
-          this.container,
-          this.context);
+      const codeSettings = executable(this.parentFile.fields, this.container);
       this.settings = patch(this.settings, codeSettings );
     } catch (err) {
-      this.container.innerHTML = '';
+      // this.container.innerHTML = '';
       this.container.innerHTML = 'Evaluation Error: ' + err.stack;
     }
   }
+
 }

@@ -18,6 +18,7 @@ export const defaultSettings: EasyCodeSettings = {
 };
 
 export class EasyCodeTab extends PluginSettingTab {
+
   plugin: EasyCode;
 
   constructor(app: App, plugin: EasyCode) {
@@ -39,7 +40,8 @@ export class EasyCodeTab extends PluginSettingTab {
             .onChange(async (value) => {
               this.plugin.settings.keyword = value;
               await this.plugin.saveSettings();
-              this.plugin.resetCodeBlocks();
+              this.plugin.refreshCodeBlocks();
             }));
   }
+
 }

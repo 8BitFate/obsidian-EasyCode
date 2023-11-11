@@ -5,6 +5,7 @@ import {
 
 export type DeepPartial<T> = { [P in keyof T]?: DeepPartial<T[P]> }
 
+// TODO test this
 export function patch<T>(original: T, changes: DeepPartial<T>): T {
   const copy = structuredClone(original);
   Object.entries(changes).reduce((acc, [key, value]) => {
@@ -16,17 +17,22 @@ export function patch<T>(original: T, changes: DeepPartial<T>): T {
 
 export async function waitForActiveFile(
     plugin: EasyCode,
+    path: string,
     maxTries: number = plugin.settings.startupWaitRetrys): Promise< TFile > {
-  let file = plugin.app.workspace.getActiveFile();
+  let file = plugin.app.vault.getAbstractFileByPath(path);
   const tries = 1;
   while (!file) {
     if (tries >= maxTries) {
       throw Error('Exceeded maximum number of tyes!');
     }
     await wait(plugin.settings.startupWaitDelay);
-    file = plugin.app.workspace.getActiveFile();
+    file = plugin.app.vault.getAbstractFileByPath(path);
   }
-  return file;
+  if (file instanceof TFile) {
+    return file as TFile;
+  } else {
+    throw Error('Invalid file path');
+  }
 }
 
 function wait(ms: number) {
