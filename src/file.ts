@@ -48,10 +48,7 @@ export class FileData {
   }
 
   createField(name: string, value: Data) {
-    const info = (this.plugin.app as any).metadataTypeManager
-        .getTypeInfo({key: name});
-    const type = info.expected.type;
-    return new Field(this, name, value, type);
+    return new Field(this, name, value);
   }
 
   newBlock(source: string, el: HTMLElement, context: MPPContext) {

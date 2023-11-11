@@ -26,11 +26,22 @@ export default class EasyCode extends Plugin {
 
   activeFiles: {[key :string]: FileData} = {};
 
-  types: {[key: string]: FrontmatterType};
+  types: {[key: string]: string} = {};
 
   async onload() {
     await this.loadSettings();
     this.addSettingTab(new EasyCodeTab(this.app, this));
+
+
+    this.loadTypes();
+    this.registerEvent(
+        this.app.metadataTypeManager.on(
+            'changed',
+            (name: string) => {
+              this.types[name] = this.app.metadataTypeManager.types[name] .type;
+              console.log(this.types);
+            })
+    );
 
     this.activeFiles = {};
     this.registerMarkdownCodeBlockProcessor(
@@ -64,6 +75,14 @@ export default class EasyCode extends Plugin {
 
   onunload() {
 
+  }
+
+  loadTypes() {
+    Object.entries(
+        this.app.metadataTypeManager.types
+    ).map(([name, {type}]: [string, {type: string}]) => {
+      this.types[name] = type;
+    });
   }
 
   async loadSettings() {

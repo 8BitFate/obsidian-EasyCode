@@ -20,14 +20,12 @@ export class Field {
   parentFile: FileData;
   name: string;
   data: Data;
-  type: string;
   updaters: ((data: Data) => void)[];
 
-  constructor(parentFile: FileData, name: string, data: Data, type: string) {
+  constructor(parentFile: FileData, name: string, data: Data) {
     this.parentFile = parentFile;
     this.name = name;
     this.data = data;
-    this.type = type;
     this.updaters = [];
   }
 
@@ -51,16 +49,17 @@ export class Field {
   }
 
   editable(el: HTMLElement) {
+    const type = this.parentFile.plugin.types[this.name];
     const container = el.createEl('input', {
       value: this.getValue(),
-      type: inputTypes[this.type],
+      type: inputTypes[type],
     });
-    if (this.type == 'checkbox') {
+    if (type == 'checkbox') {
       container.addEventListener('change',
-          listener(this.parentFile, this.name, this.type));
+          listener(this.parentFile, this.name, type));
     } else {
       container.addEventListener('input',
-          listener(this.parentFile, this.name, this.type));
+          listener(this.parentFile, this.name, type));
     }
     this.updaters.push(updater(container));
     return container;
